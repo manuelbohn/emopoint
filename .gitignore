@@ -1,0 +1,24 @@
+# R created files
+*.Rproj
+*.Rproj.user
+*.Rhistory
+*.Ruserdata
+*.history
+*.RData
+
+
+# Files that come with knitting the document, not worth sharing
+emopoint.pdf
+*.tex
+*.fff
+
+# Folders
+/plots/*
+/roger_scripts/*
+/papers/*
+/emopoint_files/*
+
+#etc
+Emopoint Outtakes.mp4
+library.bib
+

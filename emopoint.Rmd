@@ -1,0 +1,411 @@
+---
+title             : "The title"
+shorttitle        : "Title"
+
+author: 
+  - name          : "First Author"
+    affiliation   : "1"
+    corresponding : yes    # Define only one corresponding author
+    address       : "Postal address"
+    email         : "my@email.com"
+  - name          : "Ernst-August Doelle"
+    affiliation   : "1,2"
+
+affiliation:
+  - id            : "1"
+    institution   : "Wilhelm-Wundt-University"
+  - id            : "2"
+    institution   : "Konstanz Business School"
+
+author_note: |
+  Add complete departmental affiliations for each author here. Each new line herein must be indented, like this line.
+
+  Enter author note here.
+
+abstract: |
+  Enter abstract here. Each new line herein must be indented, like this line.
+  
+keywords          : "keywords"
+wordcount         : "X"
+
+bibliography      : ["library.bib"]
+
+figsintext        : yes
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+lineno            : yes
+
+lang              : "english"
+class             : "man"
+output            : papaja::apa6_pdf
+---
+
+```{r load_packages, include = FALSE}
+
+
+#### laod packages - needs to be done every time
+library("papaja")
+library("lsr")
+library("lme4")
+library("ggplot2")
+library("tidyverse")
+library("ggthemes")
+library("skimr")
+
+
+#### loading datafile into R - Data preprocessing is done using the syntax in file "pre_emopoint.r"
+data <- read.csv("emopoint.data.csv", sep=",")
+str(data)
+#### don't forget to save image (and later push to git) if you made substantial changes to data
+
+
+
+###loading the Data etc. - Data preprocessing including aggregating is managed by Manuel, all the files necessary for analysis and plotting will be part of the RData file
+
+
+
+```
+
+```{r analysis_preferences}
+# Seed for random number generation
+set.seed(42)
+```
+
+
+
+# Methods
+We report how we determined our sample size, all data exclusions (if any), all manipulations, and all measures in the study. <!-- 21-word solution (Simmons, Nelson & Simonsohn, 2012; retrieved from http://ssrn.com/abstract=2160588) -->
+
+## Participants
+
+## Material
+
+## Procedure
+
+## Data analysis
+We used `r cite_r("r-references.bib")` for all our analyses.
+
+
+# Results
+```{r chance performance}
+### for all models: maximal random effect structure (trial|id). If model does not converge, correlation is removed and then random slope.
+### control element used for all models
+contr=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=100000000))
+
+### overall: t-tests for each group based on aggregated data
+## There are 1420 data points, w/o missing data it would have been 1440. In this case aggregating across individuals seems fine.
+
+t <- data %>%
+  group_by(unique_group, id) %>%
+  summarise(corr = mean(corr)) %>%
+  summarise(corr = list(corr)) %>%
+  group_by(unique_group) %>%
+  mutate(m = mean(unlist(corr)),
+         sd = sd(unlist(corr)),
+         df= t.test(unlist(corr), mu = 0.5)$parameter,
+         t_value = t.test(unlist(corr), mu = 0.5)$statistic,
+         p_value = t.test(unlist(corr), mu = 0.5)$p.value)%>%
+  select(unique_group,m,sd, df,t_value,p_value) %>%
+  knitr::kable(digits = 2)
+
+t
+```
+
+```{r models}
+### Study 1
+
+### comparing positive and negative points in study 1
+pn <- data %>%
+  filter(unique_group == "pointA22neg" | unique_group =="pointA22apos") %>%
+  mutate(trial=scale(trial))
+
+### model
+mpn <- glmer(corr~ unique_group+ trial+
+	(trial|id),
+	data=pn, family=binomial, control = contr)
+### model summary and p-values
+summary (mpn)
+drop1(mpn, test = "Chi")
+
+# Study 2
+
+## point data with negative emotional expression
+## fitting models assuming different developmental trajectories
+## quadratic model does not converge with max random effect structure, therefore correlation is removed
+np <- data %>%
+  filter(phase == "point" & type =="neg") %>%
+  mutate(trial=scale(trial), unique_group = scale(as.numeric(unique_group)))
+### linear
+l <- glmer(corr~ unique_group+ trial+
+	(trial||id),
+	data=np, family=binomial, control = contr)
+### quadratic (u-shaped)
+q <- glmer(corr~ unique_group+ I(unique_group^2)+ trial+
+	(trial||id),
+	data=np, family=binomial, control = contr)
+### comapring models 
+anova(l,q,test ="Chi")
+### model summary and p-values
+summary (q)
+drop1(q, test = "Chi")
+
+
+# Study 3
+
+## comparing performance across age
+npe <- data %>%
+  filter(phase == "peek" ) %>%
+  mutate(trial=scale(trial), unique_group = scale(as.numeric(unique_group)))
+### linear developmental trajectory
+lp <- glmer(corr~ unique_group+ trial+
+	(trial|id),
+	data=npe, family=binomial, control = contr)
+### model summary and p-values
+summary (lp)
+drop1(lp, test = "Chi")
+
+### quadratic (u-shaped) trajectory, not plausible but for consistency sake
+qp <- glmer(corr~ unique_group+ I(unique_group^2)+ trial+
+	(trial|id),
+	data=npe, family=binomial, control = contr)
+### comapring models / quadratic model does not provide better fit
+anova(lp,qp,test ="Chi")
+
+
+```
+
+
+```{r plot results}
+ms <- data %>%
+  group_by(unique_group,study,type, id) %>%
+  summarise(correct = mean(corr)) %>%
+  multi_boot_standard(col = "correct")
+
+props <- data %>%
+  group_by(id, type,unique_group,study, id) %>%
+  summarise(corr = mean(corr))
+
+
+source("geom_flat_violin.R")
+
+plot1=ggplot()+
+  geom_count(data = props,aes(x = unique_group, y = corr), shape =21, stroke = 1, alpha = 1, position = position_nudge(-0.15))+
+  #geom_dotplot(data = props,aes(x = unique_group, y = corr),binaxis = "y", dotsize = 0.1, stackdir = "center", binwidth = 0.1,position = position_nudge(-0.1))+
+  geom_flat_violin(data = props, scale = "width",adjust = .8, trim = TRUE, aes(x = unique_group, y = corr))+
+  geom_hline(yintercept = 0.5, size = 0.5, lty=2)+
+  scale_size_continuous(range = c(3,8))+
+  guides(size=FALSE)+
+  ylim(0,1)+
+  labs(x="Age in Month",y="Proportion Correct")+
+  scale_colour_manual(name="Facial Expression",
+                      labels=c("Positive", "Negative"), values=c("darkgreen", "firebrick"))+
+  guides(colour = guide_legend(keywidth = 2, keyheight = 2))+
+  scale_x_discrete(
+    breaks = c("pointA22apos", "pointA22neg","pointA28neg","pointA34neg","pointA40neg","pointA46neg","peekA22neg","peekA28neg","peekA34neg"),
+    labels= c("22", "22","28","34","40","46","22","28","34"))+
+  facet_grid(.~ study, scales = "free_x", space = "free_x",
+          labeller = as_labeller(c(`1`="Study 1 - Pointing", `2`="Study 2 - Pointing", `3`="Study 3 - Peeking")))+
+  geom_point(data=ms,aes(x = unique_group, y = mean,colour = factor(type)), size = 4, stat="identity",position = position_nudge(0.1)) + 
+  geom_linerange(data = ms, aes(x = unique_group,colour = factor(type),y = mean, ymin = ci_lower, ymax = ci_upper), position = position_nudge(0.1), size = 1.2) +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 1))+
+  theme_few(base_size = 20)
+```
+
+```{r fig.cap = "Results.... \\label{figurelabel}", fig.height=7, fig.width=15}
+plot1
+```
+
+```{r plot trial point}
+ts <-  data %>%
+  filter(phase == "point" & type =="neg") %>%
+  group_by(trial,unique_group) %>%
+  summarise(corr = mean(corr))
+
+tp <- ggplot(ts, 
+       aes(x = trial, y = corr, fill = unique_group))+
+  geom_point(aes(colour=factor(unique_group)))+
+  geom_smooth(method = "lm", se = F ,aes(colour=factor(unique_group)))+
+  guides(fill=FALSE)+
+  scale_colour_manual(name="Age in month", labels=c("22","28","34","40","46"), values = c("black", "red", "blue", "darkgreen","orange"))+
+  ylim(0,1)+
+  labs(title = "Study 2: Performance across trials - Pointing with negative emotion")+
+  scale_x_continuous(breaks=c(1:8), labels = c(1:8))+
+  labs(x="Trial",y="Proportion Correct")+
+  theme_few()
+
+tp
+```
+
+```{r plot trial point}
+tes <-  data %>%
+  filter(phase == "peek") %>%
+  group_by(trial,unique_group) %>%
+  summarise(corr = mean(corr))
+
+tpe <- ggplot(tes, 
+       aes(x = trial, y = corr, fill = unique_group))+
+  geom_point(aes(colour=factor(unique_group)))+
+  geom_smooth(method = "lm", se = F ,aes(colour=factor(unique_group)))+
+  guides(fill=FALSE)+
+  scale_colour_manual(name="Age in month", labels=c("22","28","34"), values = c("black", "red", "blue"))+
+  ylim(0,1)+
+  labs(title = "Study 3: Performance across trials - Peeking with negative emotion")+
+  scale_x_continuous(breaks=c(1:8), labels = c(1:8))+
+  labs(x="Trial",y="Proportion Correct")+
+  theme_few()
+
+tpe
+```
+```{r individuals above chance}
+# how many individuals perform above chance in each condtition. Above vs below corresponds to one tailed binomial test
+
+iac <- data %>%
+  group_by(unique_group, id) %>%
+  summarise(corr = mean(corr)) %>%
+  summarise(above=length(corr[corr>=1]), below=length(corr[corr<=0]))%>%
+  knitr::kable(digits = 0)
+
+```
+
+
+
+```{r models for testing against chance}
+## Study 1
+
+## comparison to chance (if estimate for intercept is different from 0, performance is above chance)
+## 22mo positive point
+pp22 <- data %>%
+  filter(unique_group =="pointA22apos") %>%
+  mutate(trial=scale(trial))
+
+pp22m <- glmer(corr~ trial+
+	(trial|id),
+	data=pp22, family=binomial, control = contr)
+
+summary(pp22m)
+
+## 22mo negative point
+pn22 <- data %>%
+  filter(unique_group =="pointA22neg") %>%
+  mutate(trial=scale(trial))
+
+pn22m <- glmer(corr~ trial+
+	(trial|id),
+	data=pn22, family=binomial, control = contr)
+
+summary(pn22m)
+#p-value
+drop1(pn22m, test = "Chi")
+
+# Study 2
+
+## comparison to chance
+## 28mo negative point
+pn28 <- data %>%
+  filter(unique_group =="pointA28neg") %>%
+  mutate(trial=scale(trial))
+
+pn28m <- glmer(corr~ trial+
+	(trial|id),
+	data=pn28, family=binomial, control = contr)
+
+summary(pn28m)
+#p-value
+drop1(pn28m, test = "Chi")
+
+## 34mo negative point
+pn34 <- data %>%
+  filter(unique_group =="pointA34neg") %>%
+  mutate(trial=scale(trial))
+
+pn34m <- glmer(corr~ trial+
+	(trial|id),
+	data=pn34, family=binomial, control = contr)
+
+summary(pn34m)
+#p-value
+drop1(pn34m, test = "Chi")
+
+## 40mo negative point
+pn40 <- data %>%
+  filter(unique_group =="pointA40neg") %>%
+  mutate(trial=scale(trial))
+
+pn40m <- glmer(corr~ trial+
+	(trial|id),
+	data=pn40, family=binomial, control = contr)
+
+summary(pn40m)
+#p-value
+drop1(pn40m, test = "Chi")
+
+## 46mo negative point
+pn46 <- data %>%
+  filter(unique_group =="pointA46neg") %>%
+  mutate(trial=scale(trial))
+
+pn46m <- glmer(corr~ trial+
+	(trial|id),
+	data=pn46, family=binomial, control = contr)
+
+summary(pn46m)
+#p-value
+drop1(pn46m, test = "Chi")
+
+# Study 3
+
+## comparison to chance
+## 22mo negative peek
+pen22 <- data %>%
+  filter(unique_group =="peekA22neg") %>%
+  mutate(trial=scale(trial))
+
+pen22m <- glmer(corr~ trial+
+	(trial|id),
+	data=pen22, family=binomial, control = contr)
+
+summary(pen22m)
+#p-value
+drop1(pen22m, test = "Chi")
+
+## 28mo negative peek
+pen28 <- data %>%
+  filter(unique_group =="peekA28neg") %>%
+  mutate(trial=scale(trial))
+
+pen28m <- glmer(corr~ trial+
+	(trial|id),
+	data=pen28, family=binomial, control = contr)
+
+summary(pen28m)
+#p-value
+drop1(pen28m, test = "Chi")
+
+## 34mo negative peek
+pen34 <- data %>%
+  filter(unique_group =="peekA34neg") %>%
+  mutate(trial=scale(trial))
+
+pen34m <- glmer(corr~ trial+
+	(trial|id),
+	data=pen34, family=binomial, control = contr)
+# model summary
+summary(pen34m)
+#p-value
+drop1(pen34m, test = "Chi")
+```
+
+
+# Discussion
+
+
+\newpage
+
+# References
+```{r create_r-references}
+
+```
+
+\setlength{\parindent}{-0.5in}
+\setlength{\leftskip}{0.5in}
