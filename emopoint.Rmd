@@ -212,9 +212,8 @@ tpe
 
 
 ```{r models for testing against chance}
-## Study 1
 
-## comparison to chance (if estimate for intercept is different from 0, performance is above chance)
+## Comparison to chance (if estimate for intercept is different from 0, performance is above chance)
 ## Example for 22mo positive point
 ## For other groups simply change unique_group level and re-run code
 
