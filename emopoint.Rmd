@@ -48,10 +48,20 @@ t <- data %>%
          p_value = t.test(unlist(corr), mu = 0.5)$p.value)%>%
   select(unique_group,m,sd, df,t_value,p_value) %>%
   knitr::kable(digits = 2)
+
+t
 ```
 
-```{r chance performance table, include=TRUE}
-t
+```{r individuals above chance}
+# how many individuals perform above/below chance in each condtition. Above vs below corresponds to one tailed binomial test
+
+iac <- data %>%
+  group_by(unique_group, id) %>%
+  summarise(corr = mean(corr)) %>%
+  summarise(above=length(corr[corr>=1]), below=length(corr[corr<=0]))%>%
+  knitr::kable(digits = 0)
+
+iac
 ```
 
 ```{r models}
@@ -199,24 +209,15 @@ tpe <- ggplot(tes,
 
 tpe
 ```
-```{r individuals above chance}
-# how many individuals perform above chance in each condtition. Above vs below corresponds to one tailed binomial test
-
-iac <- data %>%
-  group_by(unique_group, id) %>%
-  summarise(corr = mean(corr)) %>%
-  summarise(above=length(corr[corr>=1]), below=length(corr[corr<=0]))%>%
-  knitr::kable(digits = 0)
-
-```
-
 
 
 ```{r models for testing against chance}
 ## Study 1
 
 ## comparison to chance (if estimate for intercept is different from 0, performance is above chance)
-## 22mo positive point
+## Example for 22mo positive point
+## For other groups simply change unique_group level and re-run code
+
 pp22 <- data %>%
   filter(unique_group =="pointA22apos") %>%
   mutate(trial=scale(trial))
@@ -226,116 +227,6 @@ pp22m <- glmer(corr~ trial+
 	data=pp22, family=binomial, control = contr)
 
 summary(pp22m)
-
-## 22mo negative point
-pn22 <- data %>%
-  filter(unique_group =="pointA22neg") %>%
-  mutate(trial=scale(trial))
-
-pn22m <- glmer(corr~ trial+
-	(trial|id),
-	data=pn22, family=binomial, control = contr)
-
-summary(pn22m)
-#p-value
-drop1(pn22m, test = "Chi")
-
-# Study 2
-
-## comparison to chance
-## 28mo negative point
-pn28 <- data %>%
-  filter(unique_group =="pointA28neg") %>%
-  mutate(trial=scale(trial))
-
-pn28m <- glmer(corr~ trial+
-	(trial|id),
-	data=pn28, family=binomial, control = contr)
-
-summary(pn28m)
-#p-value
-drop1(pn28m, test = "Chi")
-
-## 34mo negative point
-pn34 <- data %>%
-  filter(unique_group =="pointA34neg") %>%
-  mutate(trial=scale(trial))
-
-pn34m <- glmer(corr~ trial+
-	(trial|id),
-	data=pn34, family=binomial, control = contr)
-
-summary(pn34m)
-#p-value
-drop1(pn34m, test = "Chi")
-
-## 40mo negative point
-pn40 <- data %>%
-  filter(unique_group =="pointA40neg") %>%
-  mutate(trial=scale(trial))
-
-pn40m <- glmer(corr~ trial+
-	(trial|id),
-	data=pn40, family=binomial, control = contr)
-
-summary(pn40m)
-#p-value
-drop1(pn40m, test = "Chi")
-
-## 46mo negative point
-pn46 <- data %>%
-  filter(unique_group =="pointA46neg") %>%
-  mutate(trial=scale(trial))
-
-pn46m <- glmer(corr~ trial+
-	(trial|id),
-	data=pn46, family=binomial, control = contr)
-
-summary(pn46m)
-#p-value
-drop1(pn46m, test = "Chi")
-
-# Study 3
-
-## comparison to chance
-## 22mo negative peek
-pen22 <- data %>%
-  filter(unique_group =="peekA22neg") %>%
-  mutate(trial=scale(trial))
-
-pen22m <- glmer(corr~ trial+
-	(trial|id),
-	data=pen22, family=binomial, control = contr)
-
-summary(pen22m)
-#p-value
-drop1(pen22m, test = "Chi")
-
-## 28mo negative peek
-pen28 <- data %>%
-  filter(unique_group =="peekA28neg") %>%
-  mutate(trial=scale(trial))
-
-pen28m <- glmer(corr~ trial+
-	(trial|id),
-	data=pen28, family=binomial, control = contr)
-
-summary(pen28m)
-#p-value
-drop1(pen28m, test = "Chi")
-
-## 34mo negative peek
-pen34 <- data %>%
-  filter(unique_group =="peekA34neg") %>%
-  mutate(trial=scale(trial))
-
-pen34m <- glmer(corr~ trial+
-	(trial|id),
-	data=pen34, family=binomial, control = contr)
-# model summary
-summary(pen34m)
-#p-value
-drop1(pen34m, test = "Chi")
 ```
 
 
