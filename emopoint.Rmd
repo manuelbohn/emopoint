@@ -1,51 +1,14 @@
 ---
-title             : "The title"
-shorttitle        : "Title"
-
-author: 
-  - name          : "First Author"
-    affiliation   : "1"
-    corresponding : yes    # Define only one corresponding author
-    address       : "Postal address"
-    email         : "my@email.com"
-  - name          : "Ernst-August Doelle"
-    affiliation   : "1,2"
-
-affiliation:
-  - id            : "1"
-    institution   : "Wilhelm-Wundt-University"
-  - id            : "2"
-    institution   : "Konstanz Business School"
-
-author_note: |
-  Add complete departmental affiliations for each author here. Each new line herein must be indented, like this line.
-
-  Enter author note here.
-
-abstract: |
-  Enter abstract here. Each new line herein must be indented, like this line.
-  
-keywords          : "keywords"
-wordcount         : "X"
-
-bibliography      : ["library.bib"]
-
-figsintext        : yes
-figurelist        : no
-tablelist         : no
-footnotelist      : no
-lineno            : yes
-
-lang              : "english"
-class             : "man"
-output            : papaja::apa6_pdf
+title: "Emopoint"
+author: "Manuel Bohn"
+date: "24 2 2018"
+output: html_document
 ---
 
 ```{r load_packages, include = FALSE}
 
 
 #### laod packages - needs to be done every time
-library("papaja")
 library("lsr")
 library("lme4")
 library("ggplot2")
@@ -54,16 +17,9 @@ library("ggthemes")
 library("skimr")
 
 
-#### loading datafile into R - Data preprocessing is done using the syntax in file "pre_emopoint.r"
+#### loading data
 data <- read.csv("emopoint.data.csv", sep=",")
 str(data)
-#### don't forget to save image (and later push to git) if you made substantial changes to data
-
-
-
-###loading the Data etc. - Data preprocessing including aggregating is managed by Manuel, all the files necessary for analysis and plotting will be part of the RData file
-
-
 
 ```
 
@@ -72,22 +28,6 @@ str(data)
 set.seed(42)
 ```
 
-
-
-# Methods
-We report how we determined our sample size, all data exclusions (if any), all manipulations, and all measures in the study. <!-- 21-word solution (Simmons, Nelson & Simonsohn, 2012; retrieved from http://ssrn.com/abstract=2160588) -->
-
-## Participants
-
-## Material
-
-## Procedure
-
-## Data analysis
-We used `r cite_r("r-references.bib")` for all our analyses.
-
-
-# Results
 ```{r chance performance}
 ### for all models: maximal random effect structure (trial|id). If model does not converge, correlation is removed and then random slope.
 ### control element used for all models
@@ -108,7 +48,9 @@ t <- data %>%
          p_value = t.test(unlist(corr), mu = 0.5)$p.value)%>%
   select(unique_group,m,sd, df,t_value,p_value) %>%
   knitr::kable(digits = 2)
+```
 
+```{r chance performance table, include=TRUE}
 t
 ```
 
@@ -397,15 +339,3 @@ drop1(pen34m, test = "Chi")
 ```
 
 
-# Discussion
-
-
-\newpage
-
-# References
-```{r create_r-references}
-
-```
-
-\setlength{\parindent}{-0.5in}
-\setlength{\leftskip}{0.5in}
