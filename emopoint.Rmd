@@ -53,7 +53,7 @@ t
 ```
 
 ```{r individuals above chance}
-# how many individuals perform above/below chance in each condtition. Above vs below corresponds to one tailed binomial test
+# how many individuals perform above/below chance in each condtition. Above chance = all trials correct, below chance = all trials incorrect. This corresponds to p > .05 for two-tailed binomial test.
 
 iac <- data %>%
   group_by(unique_group, id) %>%
