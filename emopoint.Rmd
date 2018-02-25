@@ -58,7 +58,7 @@ t
 iac <- data %>%
   group_by(unique_group, id) %>%
   summarise(corr = mean(corr)) %>%
-  summarise(above=length(corr[corr>=1]), below=length(corr[corr<=0]))%>%
+  summarise(below=length(corr[corr<=0]),above=length(corr[corr>=1]))%>%
   knitr::kable(digits = 0)
 
 iac
