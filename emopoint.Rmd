@@ -9,7 +9,6 @@ output: html_document
 
 
 #### laod packages - needs to be done every time
-library("lsr")
 library("lme4")
 library("ggplot2")
 library("tidyverse")
@@ -54,6 +53,7 @@ t
 
 ```{r individuals above chance}
 # how many individuals perform above/below chance in each condtition. Above chance = all trials correct, below chance = all trials incorrect. This corresponds to p > .05 for two-tailed binomial test.
+# incase we want to relax this criterion to one tailed significance, simply replace 0 by 0.125 and 1 by 0.875. 
 
 iac <- data %>%
   group_by(unique_group, id) %>%
@@ -64,7 +64,7 @@ iac <- data %>%
 iac
 ```
 
-```{r models}
+```{r study 1}
 ### Study 1
 
 ### comparing positive and negative points in study 1
@@ -79,6 +79,10 @@ mpn <- glmer(corr~ unique_group+ trial+
 ### model summary and p-values
 summary (mpn)
 drop1(mpn, test = "Chi")
+
+```
+
+```{r study 2}
 
 # Study 2
 
@@ -102,7 +106,9 @@ anova(l,q,test ="Chi")
 summary (q)
 drop1(q, test = "Chi")
 
+```
 
+```{r study 3}
 # Study 3
 
 ## comparing performance across age
