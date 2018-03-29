@@ -11,9 +11,9 @@
 emopoint.pdf
 *.tex
 *.fff
+*.docx
 
 # Folders
-/plots/*
 /roger_scripts/*
 /papers/*
 /emopoint_files/*
@@ -21,4 +21,5 @@ emopoint.pdf
 #etc
 Emopoint Outtakes.mp4
 library.bib
+emopoint_bayes.Rmd
 

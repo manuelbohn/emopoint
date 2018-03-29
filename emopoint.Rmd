@@ -2,7 +2,9 @@
 title: "Emopoint"
 author: "Manuel Bohn"
 date: "24 2 2018"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
 
 ```{r load_packages, include = FALSE}
@@ -14,6 +16,8 @@ library("ggplot2")
 library("tidyverse")
 library("ggthemes")
 library("skimr")
+library("lsr")
+library(langcog)
 
 
 #### loading data
@@ -22,9 +26,21 @@ str(data)
 
 ```
 
-```{r analysis_preferences}
-# Seed for random number generation
-set.seed(42)
+```{r participant ovrview}
+# Summary for participants
+
+po <- data %>%
+  filter (trial == "1") %>%
+  group_by(study,phase,age, type) %>%
+  arrange(study, age) %>%
+  summarise(mage = mean(aged)/30.42,
+            sdage = sd(aged)/30.42,
+            llage = min(aged)/30.42,
+            ulage = max(aged)/30.42,
+            sexm = sum (sex)) %>%
+  knitr::kable(digits = 2)
+
+po
 ```
 
 ```{r chance performance}
@@ -36,19 +52,18 @@ contr=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=100000000))
 ## There are 1420 data points, w/o missing data it would have been 1440. In this case aggregating across individuals seems fine.
 
 t <- data %>%
-  group_by(unique_group, id) %>%
+  group_by(study,phase,age, type, id) %>%
+  arrange(study, age) %>%
   summarise(corr = mean(corr)) %>%
   summarise(corr = list(corr)) %>%
-  group_by(unique_group) %>%
+  group_by(study,phase,age, type) %>%
   mutate(m = mean(unlist(corr)),
          sd = sd(unlist(corr)),
          df= t.test(unlist(corr), mu = 0.5)$parameter,
          t_value = t.test(unlist(corr), mu = 0.5)$statistic,
-         p_value = t.test(unlist(corr), mu = 0.5)$p.value)%>%
-  select(unique_group,m,sd, df,t_value,p_value) %>%
-  knitr::kable(digits = 2)
-
-t
+         p = t.test(unlist(corr), mu = 0.5)$p.value,
+         d = cohensD(unlist(corr), mu = 0.5))%>%
+  select(age,phase,type,m,sd,t_value,df,p,d) 
 ```
 
 ```{r individuals above chance}
@@ -56,12 +71,17 @@ t
 # incase we want to relax this criterion to one tailed significance, simply replace 0 by 0.125 and 1 by 0.875. 
 
 iac <- data %>%
-  group_by(unique_group, id) %>%
+  group_by(study,phase,age, type, id) %>%
+  arrange(study,phase,age, type) %>%
   summarise(corr = mean(corr)) %>%
-  summarise(below=length(corr[corr<=0]),above=length(corr[corr>=1]))%>%
-  knitr::kable(digits = 0)
+  summarise(below=length(corr[corr<=0]),above=length(corr[corr>=1]))
 
-iac
+ts <- t
+ts$below <- iac$below
+ts$above <- iac$above
+
+ts %>%
+  knitr::kable(digits = 2)
 ```
 
 ```{r study 1}
@@ -91,11 +111,16 @@ drop1(mpn, test = "Chi")
 ## quadratic model does not converge with max random effect structure, therefore correlation is removed
 np <- data %>%
   filter(phase == "point" & type =="neg") %>%
-  mutate(trial=scale(trial), unique_group = scale(as.numeric(unique_group)))
+  mutate(trial=scale(trial, center = TRUE, scale=TRUE), 
+         unique_group = scale(as.numeric(unique_group), center = TRUE, scale=TRUE))
 ### linear
 l <- glmer(corr~ unique_group+ trial+
 	(trial||id),
 	data=np, family=binomial, control = contr)
+### model summary and p-values
+summary (l)
+drop1(l, test = "Chi")
+
 ### quadratic (u-shaped)
 q <- glmer(corr~ unique_group+ I(unique_group^2)+ trial+
 	(trial||id),
@@ -148,9 +173,9 @@ props <- data %>%
 source("geom_flat_violin.R")
 
 plot1=ggplot()+
-  geom_count(data = props,aes(x = unique_group, y = corr), shape =21, stroke = 1, alpha = 1, position = position_nudge(-0.15))+
+  geom_count(data = props,aes(x = unique_group, y = corr), shape =21, stroke = .8, alpha = .8, position = position_nudge(-0.17))+
   #geom_dotplot(data = props,aes(x = unique_group, y = corr),binaxis = "y", dotsize = 0.1, stackdir = "center", binwidth = 0.1,position = position_nudge(-0.1))+
-  geom_flat_violin(data = props, scale = "width",adjust = .8, trim = TRUE, aes(x = unique_group, y = corr))+
+  geom_flat_violin(data = props, scale = "width",adjust = .8, trim = F, aes(x = unique_group, y = corr))+
   geom_hline(yintercept = 0.5, size = 0.5, lty=2)+
   scale_size_continuous(range = c(3,8))+
   guides(size=FALSE)+
@@ -164,30 +189,40 @@ plot1=ggplot()+
     labels= c("22", "22","28","34","40","46","22","28","34"))+
   facet_grid(.~ study, scales = "free_x", space = "free_x",
           labeller = as_labeller(c(`1`="Study 1 - Pointing", `2`="Study 2 - Pointing", `3`="Study 3 - Peeking")))+
-  geom_point(data=ms,aes(x = unique_group, y = mean,colour = factor(type)), size = 4, stat="identity",position = position_nudge(0.1)) + 
-  geom_linerange(data = ms, aes(x = unique_group,colour = factor(type),y = mean, ymin = ci_lower, ymax = ci_upper), position = position_nudge(0.1), size = 1.2) +
+  geom_point(data=ms,aes(x = unique_group, y = mean,colour = factor(type)), size = 4, stat="identity",position = position_nudge(0.12)) + 
+  geom_linerange(data = ms, aes(x = unique_group,colour = factor(type),y = mean, ymin = ci_lower, ymax = ci_upper), position = position_nudge(0.12), size = 1.1) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1))+
-  theme_few(base_size = 20)
+  theme_few()
 ```
 
-```{r fig.cap = "Results.... \\label{figurelabel}", fig.height=7, fig.width=15}
+```{r fig.cap = "Results.... \\label{figurelabel}"}
 plot1
 ```
 
-```{r plot trial point}
+```{r plot trial}
 ts <-  data %>%
-  filter(phase == "point" & type =="neg") %>%
-  group_by(trial,unique_group) %>%
+  filter(type =="neg") %>%
+  mutate(phase = ifelse(phase == "peek", "Peeking","Pointing")) %>%
+  mutate(phase = as.factor(phase)) %>%
+  mutate(age = recode(age, "A22"="22mo","A28"="28mo","A34"="34mo","A40"="40mo","A46"="46mo")) %>%
+  mutate(phase = relevel(phase, ref = "Pointing")) %>%
+  group_by(trial,age,phase,unique_group) %>%
   summarise(corr = mean(corr))
+  
 
 tp <- ggplot(ts, 
-       aes(x = trial, y = corr, fill = unique_group))+
-  geom_point(aes(colour=factor(unique_group)))+
-  geom_smooth(method = "lm", se = F ,aes(colour=factor(unique_group)))+
+       aes(x = trial, y = corr, fill = age))+
+  geom_point(aes(colour=factor(age)), size = 2)+
+  geom_smooth(method = "lm", se = T , level = 0.95, aes(colour=factor(age)))+
   guides(fill=FALSE)+
-  scale_colour_manual(name="Age in month", labels=c("22","28","34","40","46"), values = c("black", "red", "blue", "darkgreen","orange"))+
+  facet_grid(phase ~ age, drop = T)+
+  scale_color_discrete(name="Age in month", labels=c("22","28","34","40","46"))+
+  #scale_linetype_discrete(name="Social cue", labels=c("Peeking", "Pointi"))+
+  #scale_shape_discrete(name="Social cue", labels=c("Peeking", "Pointi"))+
+  guides(color = F)+
   ylim(0,1)+
-  labs(title = "Study 2: Performance across trials - Pointing with negative emotion")+
+  geom_hline(yintercept = 0.5, size = 1, lty=2)+
+  labs(title = "Performance by trial for conditions with negative facial expression")+
   scale_x_continuous(breaks=c(1:8), labels = c(1:8))+
   labs(x="Trial",y="Proportion Correct")+
   theme_few()
@@ -199,7 +234,7 @@ tp
 tes <-  data %>%
   filter(phase == "peek") %>%
   group_by(trial,unique_group) %>%
-  summarise(corr = mean(corr))
+  summarise(corr = mean(corr)) 
 
 tpe <- ggplot(tes, 
        aes(x = trial, y = corr, fill = unique_group))+
