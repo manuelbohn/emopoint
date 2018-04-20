@@ -3,54 +3,41 @@ title: "Emopoint"
 author: "Manuel Bohn"
 date: "24 2 2018"
 output:
-  word_document: default
   html_document: default
 ---
 
 ```{r load_packages, include = FALSE}
-
-
-#### laod packages - needs to be done every time
 library("lme4")
 library("ggplot2")
 library("tidyverse")
 library("ggthemes")
 library("skimr")
 library("lsr")
-library(langcog)
+library("langcog")
 
 
 #### loading data
 data <- read.csv("emopoint.data.csv", sep=",")
-str(data)
-
 ```
-
-```{r participant ovrview}
-# Summary for participants
-
-po <- data %>%
+# Demographics summary
+```{r participant ovrview, echo = FALSE}
+data %>%
   filter (trial == "1") %>%
   group_by(study,phase,age, type) %>%
   arrange(study, age) %>%
-  summarise(mage = mean(aged)/30.42,
-            sdage = sd(aged)/30.42,
-            llage = min(aged)/30.42,
-            ulage = max(aged)/30.42,
-            sexm = sum (sex)) %>%
+  summarise(m_age = mean(aged)/30.42,
+            sd_age = sd(aged)/30.42,
+            ll_age = min(aged)/30.42,
+            ul_age = max(aged)/30.42,
+            sex_m = sum (sex)) %>%
   knitr::kable(digits = 2)
-
-po
 ```
 
-```{r chance performance}
-### for all models: maximal random effect structure (trial|id). If model does not converge, correlation is removed and then random slope.
-### control element used for all models
-contr=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=100000000))
+# Comparing performance to chance
 
-### overall: t-tests for each group based on aggregated data
-## There are 1420 data points, w/o missing data it would have been 1440. In this case aggregating across individuals seems fine.
-
+Two tailed one sample t-tests for group level comparison. 
+Individual performance: Above chance = all trials correct, below chance = all trials incorrect. This corresponds to p > .05 for two-tailed binomial test.
+```{r chance performance, echo = FALSE}
 t <- data %>%
   group_by(study,phase,age, type, id) %>%
   arrange(study, age) %>%
@@ -64,11 +51,6 @@ t <- data %>%
          p = t.test(unlist(corr), mu = 0.5)$p.value,
          d = cohensD(unlist(corr), mu = 0.5))%>%
   select(age,phase,type,m,sd,t_value,df,p,d) 
-```
-
-```{r individuals above chance}
-# how many individuals perform above/below chance in each condtition. Above chance = all trials correct, below chance = all trials incorrect. This corresponds to p > .05 for two-tailed binomial test.
-# incase we want to relax this criterion to one tailed significance, simply replace 0 by 0.125 and 1 by 0.875. 
 
 iac <- data %>%
   group_by(study,phase,age, type, id) %>%
@@ -76,16 +58,24 @@ iac <- data %>%
   summarise(corr = mean(corr)) %>%
   summarise(below=length(corr[corr<=0]),above=length(corr[corr>=1]))
 
+# Joining the two tables
 ts <- t
 ts$below <- iac$below
 ts$above <- iac$above
 
+# Overview
 ts %>%
   knitr::kable(digits = 2)
+
 ```
 
+# Study 1
+
+For all models we used maximal random effect structure (`(trial|id)`). If model does not converge, correlation between random effects is removed and then random slope.
+
 ```{r study 1}
-### Study 1
+### control element used for all models
+contr=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=100000000))
 
 ### comparing positive and negative points in study 1
 pn <- data %>%
@@ -96,27 +86,29 @@ pn <- data %>%
 mpn <- glmer(corr~ unique_group+ trial+
 	(trial|id),
 	data=pn, family=binomial, control = contr)
+
 ### model summary and p-values
 summary (mpn)
 drop1(mpn, test = "Chi")
 
 ```
 
-```{r study 2}
-
 # Study 2
 
-## point data with negative emotional expression
-## fitting models assuming different developmental trajectories
-## quadratic model does not converge with max random effect structure, therefore correlation is removed
+For models we used all point data with negative emotional expression. Models represent different assumptions about developmental trajectories.
+Quadratic model does not converge with maximal random effect structure, therefore correlation between random effects is removed.
+```{r study 2}
+### data
 np <- data %>%
   filter(phase == "point" & type =="neg") %>%
   mutate(trial=scale(trial, center = TRUE, scale=TRUE), 
          unique_group = scale(as.numeric(unique_group), center = TRUE, scale=TRUE))
+
 ### linear
 l <- glmer(corr~ unique_group+ trial+
 	(trial||id),
 	data=np, family=binomial, control = contr)
+
 ### model summary and p-values
 summary (l)
 drop1(l, test = "Chi")
@@ -125,25 +117,30 @@ drop1(l, test = "Chi")
 q <- glmer(corr~ unique_group+ I(unique_group^2)+ trial+
 	(trial||id),
 	data=np, family=binomial, control = contr)
+
 ### comapring models 
 anova(l,q,test ="Chi")
+
 ### model summary and p-values
 summary (q)
 drop1(q, test = "Chi")
 
 ```
 
-```{r study 3}
 # Study 3
 
+Using data from peek conditions. Different models represent different assumptions about developmental trajectories
+```{r study 3}
 ## comparing performance across age
 npe <- data %>%
   filter(phase == "peek" ) %>%
   mutate(trial=scale(trial), unique_group = scale(as.numeric(unique_group)))
+
 ### linear developmental trajectory
 lp <- glmer(corr~ unique_group+ trial+
 	(trial|id),
 	data=npe, family=binomial, control = contr)
+
 ### model summary and p-values
 summary (lp)
 drop1(lp, test = "Chi")
@@ -152,13 +149,16 @@ drop1(lp, test = "Chi")
 qp <- glmer(corr~ unique_group+ I(unique_group^2)+ trial+
 	(trial|id),
 	data=npe, family=binomial, control = contr)
+
 ### comapring models / quadratic model does not provide better fit
 anova(lp,qp,test ="Chi")
 
 
 ```
 
+# Plots
 
+Overview of results.
 ```{r plot results}
 ms <- data %>%
   group_by(unique_group,study,type, id) %>%
@@ -169,17 +169,15 @@ props <- data %>%
   group_by(id, type,unique_group,study, id) %>%
   summarise(corr = mean(corr))
 
-
 source("geom_flat_violin.R")
 
-plot1=ggplot()+
-  geom_count(data = props,aes(x = unique_group, y = corr), shape =21, stroke = .8, alpha = .8, position = position_nudge(-0.17))+
-  #geom_dotplot(data = props,aes(x = unique_group, y = corr),binaxis = "y", dotsize = 0.1, stackdir = "center", binwidth = 0.1,position = position_nudge(-0.1))+
-  geom_flat_violin(data = props, scale = "width",adjust = .8, trim = F, aes(x = unique_group, y = corr))+
+ggplot()+
+geom_count(data = props,aes(x = unique_group, y = corr), shape =21, stroke = .8, alpha = .8, position = position_nudge(-0.2))+
+  geom_flat_violin(data = props, scale = "width",adjust = .7, trim = F, aes(x = unique_group, y = corr),position = position_nudge(0))+
   geom_hline(yintercept = 0.5, size = 0.5, lty=2)+
   scale_size_continuous(range = c(3,8))+
   guides(size=FALSE)+
-  ylim(0,1)+
+  ylim(-0.05,1.05)+
   labs(x="Age in Month",y="Proportion Correct")+
   scale_colour_manual(name="Facial Expression",
                       labels=c("Positive", "Negative"), values=c("darkgreen", "firebrick"))+
@@ -189,15 +187,13 @@ plot1=ggplot()+
     labels= c("22", "22","28","34","40","46","22","28","34"))+
   facet_grid(.~ study, scales = "free_x", space = "free_x",
           labeller = as_labeller(c(`1`="Study 1 - Pointing", `2`="Study 2 - Pointing", `3`="Study 3 - Peeking")))+
-  geom_point(data=ms,aes(x = unique_group, y = mean,colour = factor(type)), size = 4, stat="identity",position = position_nudge(0.12)) + 
-  geom_linerange(data = ms, aes(x = unique_group,colour = factor(type),y = mean, ymin = ci_lower, ymax = ci_upper), position = position_nudge(0.12), size = 1.1) +
+  geom_point(data=ms,aes(x = unique_group, y = mean,colour = factor(type)), size = 4, stat="identity",position = position_nudge(-0.2)) + 
+  geom_linerange(data = ms, aes(x = unique_group,colour = factor(type),y = mean, ymin = ci_lower, ymax = ci_upper), position = position_nudge(-0.2), size = 1.1) +
   theme(panel.border = element_rect(color = "black", fill = NA, size = 1))+
   theme_few()
 ```
 
-```{r fig.cap = "Results.... \\label{figurelabel}"}
-plot1
-```
+By trial.
 
 ```{r plot trial}
 ts <-  data %>%
@@ -210,63 +206,20 @@ ts <-  data %>%
   summarise(corr = mean(corr))
   
 
-tp <- ggplot(ts, 
+ggplot(ts, 
        aes(x = trial, y = corr, fill = age))+
   geom_point(aes(colour=factor(age)), size = 2)+
   geom_smooth(method = "lm", se = T , level = 0.95, aes(colour=factor(age)))+
   guides(fill=FALSE)+
   facet_grid(phase ~ age, drop = T)+
   scale_color_discrete(name="Age in month", labels=c("22","28","34","40","46"))+
-  #scale_linetype_discrete(name="Social cue", labels=c("Peeking", "Pointi"))+
-  #scale_shape_discrete(name="Social cue", labels=c("Peeking", "Pointi"))+
   guides(color = F)+
   ylim(0,1)+
   geom_hline(yintercept = 0.5, size = 1, lty=2)+
-  labs(title = "Performance by trial for conditions with negative facial expression")+
   scale_x_continuous(breaks=c(1:8), labels = c(1:8))+
   labs(x="Trial",y="Proportion Correct")+
   theme_few()
 
-tp
-```
-
-```{r plot trial point}
-tes <-  data %>%
-  filter(phase == "peek") %>%
-  group_by(trial,unique_group) %>%
-  summarise(corr = mean(corr)) 
-
-tpe <- ggplot(tes, 
-       aes(x = trial, y = corr, fill = unique_group))+
-  geom_point(aes(colour=factor(unique_group)))+
-  geom_smooth(method = "lm", se = F ,aes(colour=factor(unique_group)))+
-  guides(fill=FALSE)+
-  scale_colour_manual(name="Age in month", labels=c("22","28","34"), values = c("black", "red", "blue"))+
-  ylim(0,1)+
-  labs(title = "Study 3: Performance across trials - Peeking with negative emotion")+
-  scale_x_continuous(breaks=c(1:8), labels = c(1:8))+
-  labs(x="Trial",y="Proportion Correct")+
-  theme_few()
-
-tpe
-```
-
-
-```{r models for testing against chance}
-
-## Comparison to chance (if estimate for intercept is different from 0, performance is above chance)
-## Example for 22mo positive point
-## For other groups simply change unique_group level and re-run code
-
-pp22 <- data %>%
-  filter(unique_group =="pointA22apos") %>%
-  mutate(trial=scale(trial))
-
-pp22m <- glmer(corr~ trial+
-	(trial|id),
-	data=pp22, family=binomial, control = contr)
-
-summary(pp22m)
 ```
 
 

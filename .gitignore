@@ -12,11 +12,13 @@ emopoint.pdf
 *.tex
 *.fff
 *.docx
+*.html
 
 # Folders
 /roger_scripts/*
 /papers/*
 /emopoint_files/*
+/plots/*
 
 #etc
 Emopoint Outtakes.mp4
