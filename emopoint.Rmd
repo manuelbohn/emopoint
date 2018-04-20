@@ -17,7 +17,8 @@ library("langcog")
 
 
 #### loading data
-data <- read.csv("emopoint.data.csv", sep=",")
+data <- read.csv("data/emopoint.data.csv", sep=",")
+str(data)
 ```
 # Demographics summary
 ```{r participant ovrview, echo = FALSE}
