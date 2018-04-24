@@ -15,11 +15,27 @@ library("skimr")
 library("lsr")
 library("langcog")
 
+# langcog package is installed by running
+# install.packages("devtools")
+# devtools::install_github("langcog/langcog")
+
 
 #### loading data
 data <- read.csv("data/emopoint.data.csv", sep=",")
-str(data)
 ```
+# Data structure:
+
+* $ study       : Study 1 - 3
+* $ age         : Age group (22,28,34,40 or 46)
+* $ phase       : Point or peek used as cue
+* $ id          : Unique number identifying each subject
+* $ aged        : Participant age in days
+* $ trial       : Trial within participant
+* $ type        : Emotional expression: positive or negative
+* $ corr        : Correct choice
+* $ sex         : 0 = female
+* $ unique_group: Variable uniquely identifying each cell (combination of age, phase and type)
+ 
 # Demographics summary
 ```{r participant ovrview, echo = FALSE}
 data %>%
@@ -36,8 +52,8 @@ data %>%
 
 # Comparing performance to chance
 
-Two tailed one sample t-tests for group level comparison. 
-Individual performance: Above chance = all trials correct, below chance = all trials incorrect. This corresponds to p > .05 for two-tailed binomial test.
+Two-tailed one sample t-tests for group level comparison to chance. 
+Individual performance is evaluated based on two-tailed binomial tests with p > .05 above chance when all trials are correct and below chance if all trials are incorrect.
 ```{r chance performance, echo = FALSE}
 t <- data %>%
   group_by(study,phase,age, type, id) %>%
@@ -59,7 +75,7 @@ iac <- data %>%
   summarise(corr = mean(corr)) %>%
   summarise(below=length(corr[corr<=0]),above=length(corr[corr>=1]))
 
-# Joining the two tables
+# Joining tables with group level inforamtion and individual level information
 ts <- t
 ts$below <- iac$below
 ts$above <- iac$above
@@ -72,7 +88,7 @@ ts %>%
 
 # Study 1
 
-For all models we used maximal random effect structure (`(trial|id)`). If model does not converge, correlation between random effects is removed and then random slope.
+For all models we used a maximal random effect structure (`(trial|id)`). If models did not converge, first correlation between random effects was removed and then the random slope.
 
 ```{r study 1}
 ### control element used for all models
@@ -96,8 +112,8 @@ drop1(mpn, test = "Chi")
 
 # Study 2
 
-For models we used all point data with negative emotional expression. Models represent different assumptions about developmental trajectories.
-Quadratic model does not converge with maximal random effect structure, therefore correlation between random effects is removed.
+For the following models, we used all point data with negative facial expression. Models represent different assumptions about developmental trajectories.
+Quadratic model did not converge with maximal random effect structure, therefore correlation between random effects is removed.
 ```{r study 2}
 ### data
 np <- data %>%
@@ -105,7 +121,7 @@ np <- data %>%
   mutate(trial=scale(trial, center = TRUE, scale=TRUE), 
          unique_group = scale(as.numeric(unique_group), center = TRUE, scale=TRUE))
 
-### linear
+### model assuming linear developmental trajectory
 l <- glmer(corr~ unique_group+ trial+
 	(trial||id),
 	data=np, family=binomial, control = contr)
@@ -114,12 +130,12 @@ l <- glmer(corr~ unique_group+ trial+
 summary (l)
 drop1(l, test = "Chi")
 
-### quadratic (u-shaped)
+### model assuming quadratic (u-shaped) developmental trajectory
 q <- glmer(corr~ unique_group+ I(unique_group^2)+ trial+
 	(trial||id),
 	data=np, family=binomial, control = contr)
 
-### comapring models 
+### comparing linear and quadratic model 
 anova(l,q,test ="Chi")
 
 ### model summary and p-values
@@ -130,14 +146,14 @@ drop1(q, test = "Chi")
 
 # Study 3
 
-Using data from peek conditions. Different models represent different assumptions about developmental trajectories
+Here we analysed all data from peek conditions. Again, different models represent different assumptions about developmental trajectories.
 ```{r study 3}
 ## comparing performance across age
 npe <- data %>%
   filter(phase == "peek" ) %>%
   mutate(trial=scale(trial), unique_group = scale(as.numeric(unique_group)))
 
-### linear developmental trajectory
+### model assuming linear developmental trajectory
 lp <- glmer(corr~ unique_group+ trial+
 	(trial|id),
 	data=npe, family=binomial, control = contr)
@@ -146,12 +162,12 @@ lp <- glmer(corr~ unique_group+ trial+
 summary (lp)
 drop1(lp, test = "Chi")
 
-### quadratic (u-shaped) trajectory, not plausible but for consistency sake
+### model assuming quadratic (u-shaped) trajectory
 qp <- glmer(corr~ unique_group+ I(unique_group^2)+ trial+
 	(trial|id),
 	data=npe, family=binomial, control = contr)
 
-### comapring models / quadratic model does not provide better fit
+### comparing linear and quadratic model 
 anova(lp,qp,test ="Chi")
 
 
@@ -159,8 +175,9 @@ anova(lp,qp,test ="Chi")
 
 # Plots
 
-Overview of results.
-```{r plot results}
+## Overview of results
+
+```{r plot results, fig.cap="Proportion of correct response per age group and study. Colored dots show means, error bars represent 95% confidence intervals around the mean based on non-parametric bootstraps. Dotted line indicated performance expected by chance. Black circles show individual data with size of the dot corresponding to the number of participants with that performance. Smoothed density distributions are shown in grey."}
 ms <- data %>%
   group_by(unique_group,study,type, id) %>%
   summarise(correct = mean(corr)) %>%
@@ -194,9 +211,9 @@ geom_count(data = props,aes(x = unique_group, y = corr), shape =21, stroke = .8,
   theme_few()
 ```
 
-By trial.
+## Results by trial
 
-```{r plot trial}
+```{r plot trial, fig.cap="Proportion correct choice by age group and trial for conditions with negative facial expressions. Regression lines show smoothed conditional means with 95% confidence intervals. Forty- and 46-month-olds were not tested in peeking because performance was above chance at 34 month."}
 ts <-  data %>%
   filter(type =="neg") %>%
   mutate(phase = ifelse(phase == "peek", "Peeking","Pointing")) %>%
