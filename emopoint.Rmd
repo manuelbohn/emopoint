@@ -75,7 +75,7 @@ iac <- data %>%
   summarise(corr = mean(corr)) %>%
   summarise(below=length(corr[corr<=0]),above=length(corr[corr>=1]))
 
-# Joining tables with group level inforamtion and individual level information
+# Joining tables with group level information and individual level information
 ts <- t
 ts$below <- iac$below
 ts$above <- iac$above
@@ -239,5 +239,4 @@ ggplot(ts,
   theme_few()
 
 ```
-
 
