@@ -82,7 +82,7 @@ ts$above <- iac$above
 
 # Overview
 ts %>%
-  knitr::kable(digits = 2)
+  knitr::kable(digits = 3)
 
 ```
 
@@ -141,6 +141,22 @@ anova(l,q,test ="Chi")
 ### model summary and p-values
 summary (q)
 drop1(q, test = "Chi")
+
+
+### model with age as categorical predictor
+### data
+np2 <- data %>%
+  filter(phase == "point" & type =="neg") %>%
+  mutate(unique_group = relevel(unique_group, ref = "pointA34neg")) %>%
+  mutate(trial=scale(trial, center = TRUE, scale=TRUE))
+
+### model
+l2 <- glmer(corr~ unique_group + trial+
+	(trial|id),
+	data=np2, family=binomial, control = contr)
+
+### model summary
+summary (l2)
 
 ```
 
