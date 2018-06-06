@@ -214,7 +214,7 @@ geom_count(data = props,aes(x = unique_group, y = corr), shape =21, stroke = .8,
   ylim(-0.05,1.05)+
   labs(x="Age in Month",y="Proportion Correct")+
   scale_colour_manual(name="Facial Expression",
-                      labels=c("Positive", "Negative"), values=c("darkgreen", "firebrick"))+
+                      labels=c("Positive", "Negative"), values=c("#859900", "#dc322f"))+
   guides(colour = guide_legend(keywidth = 2, keyheight = 2))+
   scale_x_discrete(
     breaks = c("pointA22apos", "pointA22neg","pointA28neg","pointA34neg","pointA40neg","pointA46neg","peekA22neg","peekA28neg","peekA34neg"),
@@ -248,7 +248,7 @@ ggplot(ts,
   facet_grid(phase ~ age, drop = T)+
   scale_color_discrete(name="Age in month", labels=c("22","28","34","40","46"))+
   guides(color = F)+
-  ylim(0,1)+
+  ylim(0,1.05)+
   geom_hline(yintercept = 0.5, size = 1, lty=2)+
   scale_x_continuous(breaks=c(1:8), labels = c(1:8))+
   labs(x="Trial",y="Proportion Correct")+
