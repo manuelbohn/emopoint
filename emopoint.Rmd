@@ -1,6 +1,5 @@
 ---
-title: "Emopoint"
-author: "Manuel Bohn"
+title: "Young children’s developing ability to integrate gestural and emotional cues"
 date: "24 2 2018"
 output:
   html_document: default
