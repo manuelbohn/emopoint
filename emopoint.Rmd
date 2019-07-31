@@ -118,11 +118,12 @@ Quadratic model did not converge with maximal random effect structure, therefore
 np <- data %>%
   filter(phase == "point" & type =="neg") %>%
   mutate(trial=scale(trial, center = TRUE, scale=TRUE), 
-         unique_group = scale(as.numeric(unique_group), center = TRUE, scale=TRUE))
+         unique_group = scale(as.numeric(unique_group), center = TRUE, scale=TRUE),
+         aged = scale(as.numeric(aged), center = TRUE, scale=TRUE))
 
 ### model assuming linear developmental trajectory
-l <- glmer(corr~ unique_group+ trial+
-	(trial||id),
+l <- glmer(corr~ aged+ trial+
+	(trial|id),
 	data=np, family=binomial, control = contr)
 
 ### model summary and p-values
@@ -130,8 +131,8 @@ summary (l)
 drop1(l, test = "Chi")
 
 ### model assuming quadratic (u-shaped) developmental trajectory
-q <- glmer(corr~ unique_group+ I(unique_group^2)+ trial+
-	(trial||id),
+q <- glmer(corr~ aged+ I(aged^2)+ trial+
+	(trial|id),
 	data=np, family=binomial, control = contr)
 
 ### comparing linear and quadratic model 
@@ -205,8 +206,8 @@ props <- data %>%
 source("geom_flat_violin.R")
 
 ggplot()+
-geom_count(data = props,aes(x = unique_group, y = corr), shape =21, stroke = .8, alpha = .8, position = position_nudge(-0.2))+
-  geom_flat_violin(data = props, scale = "width",adjust = .7, trim = F, aes(x = unique_group, y = corr),position = position_nudge(0))+
+  geom_violin(data = props, scale = "width",adjust = 1, trim = F, aes(x = unique_group, y = corr), fill = "grey", alpha = .2)+
+  geom_dotplot(data = props,aes(x = unique_group, y = corr),fill = "grey", binaxis = "y", stackdir = "centerwhole", binpositions="all", binwidth = .015, alpha = .5)+
   geom_hline(yintercept = 0.5, size = 0.5, lty=2)+
   scale_size_continuous(range = c(3,8))+
   guides(size=FALSE)+
@@ -220,11 +221,15 @@ geom_count(data = props,aes(x = unique_group, y = corr), shape =21, stroke = .8,
     labels= c("22", "22","28","34","40","46","22","28","34"))+
   facet_grid(.~ study, scales = "free_x", space = "free_x",
           labeller = as_labeller(c(`1`="Study 1 - Pointing", `2`="Study 2 - Pointing", `3`="Study 3 - Peeking")))+
-  geom_point(data=ms,aes(x = unique_group, y = mean,colour = factor(type)), size = 4, stat="identity",position = position_nudge(-0.2)) + 
-  geom_linerange(data = ms, aes(x = unique_group,colour = factor(type),y = mean, ymin = ci_lower, ymax = ci_upper), position = position_nudge(-0.2), size = 1.1) +
-  theme(panel.border = element_rect(color = "black", fill = NA, size = 1))+
+  geom_point(data=ms,aes(x = unique_group, y = mean,colour = factor(type)), pch = 5, stroke = 1, size = 2, stat="identity") + 
+  geom_linerange(data = ms, aes(x = unique_group,colour = factor(type),y = mean, ymin = ci_lower, ymax = ci_upper), size = .75) +
   theme_few()
 ```
+
+```{r}
+ggsave("plots/data.pdf", width = 20, height = 8, scale = 1, dpi = 2000, units = "cm")
+```
+
 
 ## Results by trial
 
@@ -235,23 +240,57 @@ ts <-  data %>%
   mutate(phase = as.factor(phase)) %>%
   mutate(age = recode(age, "A22"="22mo","A28"="28mo","A34"="34mo","A40"="40mo","A46"="46mo")) %>%
   mutate(phase = relevel(phase, ref = "Pointing")) %>%
-  group_by(trial,age,phase,unique_group) %>%
-  summarise(corr = mean(corr))
+  group_by(trial,age,phase,unique_group)
   
+ 
+ts_mean <- ts %>%
+  summarise(corr = mean(corr))
 
 ggplot(ts, 
-       aes(x = trial, y = corr, fill = age))+
-  geom_point(aes(colour=factor(age)), size = 2)+
-  geom_smooth(method = "lm", se = T , level = 0.95, aes(colour=factor(age)))+
-  guides(fill=FALSE)+
-  facet_grid(phase ~ age, drop = T)+
-  scale_color_discrete(name="Age in month", labels=c("22","28","34","40","46"))+
-  guides(color = F)+
+       aes(x = trial, y = corr))+
+  geom_point(data = ts_mean, aes(colour=phase), size = 2, stroke = 1, pch = 21)+
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = T , level = 0.95, aes(colour=phase, fill = phase))+
+  #g#ides(fill=FALSE)+
+  facet_grid(.~ age, drop = T)+
+  #scale_color_discrete(name="Age in month", labels=c("22","28","34","40","46"))+
+  #guides(color = F)+
   ylim(0,1.05)+
   geom_hline(yintercept = 0.5, size = 1, lty=2)+
   scale_x_continuous(breaks=c(1:8), labels = c(1:8))+
   labs(x="Trial",y="Proportion Correct")+
-  theme_few()
+  theme_few()+
+  scale_fill_ptol(name = "Social Cue")+
+  scale_color_ptol(name = "Social Cue" )
 
+
+```
+
+```{r}
+ggsave("plots/trial_data.pdf", width = 20, height = 7, scale = 1, dpi = 2000, units = "cm")
+```
+
+## Different developmental trajectories
+
+```{r}
+age_continuous <-  data %>%
+  filter(type =="neg", phase == "point") %>%
+  group_by(aged, id) %>%
+  summarise(corr = mean(corr))
+  
+
+ggplot(age_continuous, 
+       aes(x = aged, y = corr))+
+  geom_point( size = 1)+
+  geom_smooth(method = "lm", formula = y ~ poly(x,2), se = T , level = 0.95)+
+  geom_smooth(method = "lm", formula = y ~ x, se = T , level = 0.95)+
+  guides(fill=FALSE)+
+  #facet_grid(phase ~ age, drop = T)+
+  #scale_color_discrete(name="Age in days")+
+  guides(color = F)+
+  ylim(0,1.05)+
+  geom_hline(yintercept = 0.5, size = 1, lty=2)+
+  scale_x_continuous(breaks=c(1:8), labels = c(1:8))+
+  labs(x="Age in days",y="Proportion Correct")+
+  theme_few()
 ```
 

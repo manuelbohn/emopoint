@@ -1,4 +1,4 @@
-# R created files
+DF# R created files
 *.Rproj
 *.Rproj.user
 *.Rhistory
@@ -18,7 +18,6 @@ emopoint.pdf
 /roger_scripts/*
 /papers/*
 /emopoint_files/*
-/plots/*
 
 #etc
 Emopoint Outtakes.mp4
