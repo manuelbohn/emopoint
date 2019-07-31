@@ -207,7 +207,7 @@ source("geom_flat_violin.R")
 
 ggplot()+
   geom_violin(data = props, scale = "width",adjust = 1, trim = F, aes(x = unique_group, y = corr), fill = "grey", alpha = .2)+
-  geom_dotplot(data = props,aes(x = unique_group, y = corr),fill = "grey", binaxis = "y", stackdir = "centerwhole", binpositions="all", binwidth = .015, alpha = .5)+
+  geom_dotplot(data = props,aes(x = unique_group, y = corr),fill = "grey", binaxis = "y", stackdir = "centerwhole", binpositions="all", binwidth = .025, alpha = .5)+
   geom_hline(yintercept = 0.5, size = 0.5, lty=2)+
   scale_size_continuous(range = c(3,8))+
   guides(size=FALSE)+
@@ -227,7 +227,7 @@ ggplot()+
 ```
 
 ```{r}
-ggsave("plots/data.pdf", width = 20, height = 8, scale = 1, dpi = 2000, units = "cm")
+#ggsave("plots/data.pdf", width = 20, height = 7, scale = 1, dpi = 2000, units = "cm")
 ```
 
 
