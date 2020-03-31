@@ -68,6 +68,24 @@ t <- data %>%
          d = cohensD(unlist(corr), mu = 0.5))%>%
   select(age,phase,type,m,sd,t_value,df,p,d) 
 
+# alternative way to compare performance to chance
+# run a GLMM in each age group and condition, predicting preformance only by the Intercept
+# An intercept of 0 (in link space) is equivalent to a proportion of 0.5. 
+# If the intercept is significant, it is significantly different from 0 and performance is thus significantly different from chance
+# (note: trial as a random slope has to be taken out of the model to avoid singular fit)
+
+### control element used for all models
+contr=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=100000000))
+
+# running models
+m <- data %>%
+  group_by(study,phase,age, type) %>%
+  do(models = tidy(glmer(corr ~ 1+ (1|id),data=., family=binomial, control = contr)), effects = "fixed")%>%
+  mutate(estimate = models%>%filter(term =="(Intercept)")%>%pull(estimate),
+         se = models%>%filter(term =="(Intercept)")%>%pull(std.error),
+         p = round(models%>%filter(term =="(Intercept)")%>%pull(p.value),3))
+
+
 iac <- data %>%
   group_by(study,phase,age, type, id) %>%
   arrange(study,phase,age, type) %>%
@@ -100,7 +118,7 @@ pn <- data %>%
 
 ### model
 mpn <- glmer(corr~ unique_group+ trial+
-	(trial|id),
+	(trial||id),
 	data=pn, family=binomial, control = contr)
 
 ### model summary and p-values
@@ -123,7 +141,7 @@ np <- data %>%
 
 ### model assuming linear developmental trajectory
 l <- glmer(corr~ aged+ trial+
-	(trial|id),
+	(trial||id),
 	data=np, family=binomial, control = contr)
 
 ### model summary and p-values
@@ -132,7 +150,7 @@ drop1(l, test = "Chi")
 
 ### model assuming quadratic (u-shaped) developmental trajectory
 q <- glmer(corr~ aged+ I(aged^2)+ trial+
-	(trial|id),
+	(trial||id),
 	data=np, family=binomial, control = contr)
 
 ### comparing linear and quadratic model 
@@ -171,7 +189,7 @@ npe <- data %>%
 
 ### model assuming linear developmental trajectory
 lp <- glmer(corr~ unique_group+ trial+
-	(trial|id),
+	(trial||id),
 	data=npe, family=binomial, control = contr)
 
 ### model summary and p-values
@@ -180,7 +198,7 @@ drop1(lp, test = "Chi")
 
 ### model assuming quadratic (u-shaped) trajectory
 qp <- glmer(corr~ unique_group+ I(unique_group^2)+ trial+
-	(trial|id),
+	(trial||id),
 	data=npe, family=binomial, control = contr)
 
 ### comparing linear and quadratic model 
