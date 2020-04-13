@@ -212,7 +212,7 @@ ggplot()+
   scale_size_continuous(range = c(3,8))+
   guides(size=FALSE)+
   ylim(-0.05,1.05)+
-  labs(x="Age in Month",y="Proportion Correct")+
+  labs(x="Age in Months",y="Proportion Correct")+
   scale_colour_manual(name="Facial Expression",
                       labels=c("Positive", "Negative"), values=c("#859900", "#dc322f"))+
   guides(colour = guide_legend(keywidth = 2, keyheight = 2))+
@@ -292,5 +292,6 @@ ggplot(age_continuous,
   scale_x_continuous(breaks=c(1:8), labels = c(1:8))+
   labs(x="Age in days",y="Proportion Correct")+
   theme_few()
+
 ```
 
