@@ -83,7 +83,8 @@ m <- data %>%
   do(models = tidy(glmer(corr ~ 1+ (1|id),data=., family=binomial, control = contr)), effects = "fixed")%>%
   mutate(estimate = models%>%filter(term =="(Intercept)")%>%pull(estimate),
          se = models%>%filter(term =="(Intercept)")%>%pull(std.error),
-         p = round(models%>%filter(term =="(Intercept)")%>%pull(p.value),3))
+         p = round(models%>%filter(term =="(Intercept)")%>%pull(p.value),3))%>%
+  select(study, age, type, estimate, se, p)
 
 
 iac <- data %>%
@@ -92,10 +93,16 @@ iac <- data %>%
   summarise(corr = mean(corr)) %>%
   summarise(below=length(corr[corr<=0]),above=length(corr[corr>=1]))
 
+t1 <- data %>%
+  filter(trial == 1)%>%
+  group_by(study,phase,age, type)%>%
+  summarise(t1 = sum(corr))
+
 # Joining tables with group level information and individual level information
-ts <- t
-ts$below <- iac$below
-ts$above <- iac$above
+ts <- t%>%
+  left_join(iac)%>%
+  left_join(t1)
+
 
 # Overview
 ts %>%
