@@ -13,6 +13,8 @@ library("ggthemes")
 library("skimr")
 library("lsr")
 library("langcog")
+library("tidyr")
+library("broom.mixed")
 
 # langcog package is installed by running
 # install.packages("devtools")
@@ -80,7 +82,7 @@ contr=glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=100000000))
 # running models
 m <- data %>%
   group_by(study,phase,age, type) %>%
-  do(models = tidy(glmer(corr ~ 1+ (1|id),data=., family=binomial, control = contr)), effects = "fixed")%>%
+  do(models = broom.mixed::tidy(glmer(corr ~ 1+ (1|id),data=., family=binomial, control = contr)), effects = "fixed")%>%
   mutate(estimate = models%>%filter(term =="(Intercept)")%>%pull(estimate),
          se = models%>%filter(term =="(Intercept)")%>%pull(std.error),
          p = round(models%>%filter(term =="(Intercept)")%>%pull(p.value),3))%>%
